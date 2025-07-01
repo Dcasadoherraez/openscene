@@ -267,7 +267,10 @@ def obtain_text_features_and_palette():
         labelset = list(NUSCENES_LABELS_16)
         palette = get_palette(colormap='nuscenes16')
         dataset_name = 'nuscenes'
-
+    elif 'truckscenes' in args.data_root:
+        labelset = list(TRUCKSCENES_LABELS_12)
+        palette = get_palette(colormap='truckscenes12')
+        dataset_name = 'truckscenes'
     if not os.path.exists('saved_text_embeddings'):
         os.makedirs('saved_text_embeddings')
 
@@ -368,6 +371,8 @@ def distill(train_loader, model, optimizer, epoch):
             writer.add_scalar('learning_rate', current_lr, current_iter)
 
         end = time.time()
+        print("BREAKING EARLY")
+        break
 
     mask_first = (coords[mask][:, 0] == 0)
     output_3d = output_3d[mask_first]
@@ -381,6 +386,12 @@ def distill(train_loader, model, optimizer, epoch):
     logits_gt[logits_gt == 255] = args.classes
 
     pcl = coords[:, 1:].cpu().numpy()
+    print("PCL SHAPE", pcl.shape)
+    print("First scan shape", output_3d.shape)
+    print("PCL[mask] SHAPE", pcl[mask].shape)
+    print("PCL[mask][mask_first] SHAPE", pcl[mask][mask_first.cpu().numpy()].shape)
+    
+    
 
     seg_label_color = convert_labels_with_palette(
         logits_img, palette)

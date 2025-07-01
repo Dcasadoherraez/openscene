@@ -184,6 +184,40 @@ def export_mesh(name, v, f, c=None):
         mesh.vertex_colors = o3d.utility.Vector3dVector(c)
     o3d.io.write_triangle_mesh(name, mesh)
 
+
+def visualize_labels_2d(u_index, labels, palette, coords, out_name, loc='lower left', ncol=7):
+    assert len(coords) == len(u_index), "Number of coordinates must match number of indices"
+
+    plt.figure(figsize=(8, 6))
+    patches = []
+    used_labels = set()
+
+    for i, index in enumerate(u_index):
+        label = labels[index]
+        color = np.array([
+            palette[index * 3] / 255.0,
+            palette[index * 3 + 1] / 255.0,
+            palette[index * 3 + 2] / 255.0
+        ])
+        x, y = coords[i]
+        plt.scatter(x, y, color=color, s=10, label=label if label not in used_labels else "")
+        if label not in used_labels:
+            patch = mpatches.Patch(color=color, label=label)
+            patches.append(patch)
+            used_labels.add(label)
+
+    plt.axis('equal')
+    plt.axis('off')
+    legend = plt.legend(
+        frameon=False, handles=patches, loc=loc, ncol=ncol,
+        bbox_to_anchor=(0, -0.3), prop={'size': 5}, handlelength=0.7
+    )
+    plt.tight_layout()
+    plt.savefig(out_name, bbox_inches='tight', dpi=300)
+    plt.close()
+
+
+
 def visualize_labels(u_index, labels, palette, out_name, loc='lower left', ncol=7):
     patches = []
     for i, index in enumerate(u_index):
@@ -223,6 +257,11 @@ def get_palette(num_cls=21, colormap='scannet'):
         for _, value in NUSCENES16_COLORMAP.items():
             nuscenes16_palette.append(np.array(value))
         palette = np.concatenate(nuscenes16_palette)
+    elif colormap == 'truckscenes12':
+        truckscenes12_palette = []
+        for _, value in TRUCKSCENES12_COLORMAP.items():
+            truckscenes12_palette.append(np.array(value))
+        palette = np.concatenate(truckscenes12_palette)
     else:
         n = num_cls
         palette = [0]*(n*3)

@@ -1,5 +1,5 @@
 '''Dataloader for 3D points.'''
-
+import os
 from glob import glob
 import multiprocessing as mp
 from os.path import join, exists
@@ -8,7 +8,7 @@ import torch
 import SharedArray as SA
 import dataset.augmentation as t
 from dataset.voxelizer import Voxelizer
-
+from dataset.label_constants import TRUCKSCENES_LABELS_TO_IDX
 
 def sa_create(name, var):
     '''Create share memory.'''
@@ -78,6 +78,7 @@ class Point3DLoader(torch.utils.data.Dataset):
             split = ''
         self.identifier = identifier
         self.data_paths = sorted(glob(join(datapath_prefix, split, '*.pth')))
+
         if len(self.data_paths) == 0:
             raise Exception('0 file is loaded in the point loader.')
 
@@ -146,7 +147,35 @@ class Point3DLoader(torch.utils.data.Dataset):
                                   (self.dataset_name, self.split, self.identifier, index)).copy()
         else:
             locs_in, feats_in, labels_in = torch.load(self.data_paths[index])
-            labels_in[labels_in == -100] = 255
+
+            if 'truckscenes' in self.dataset_name:
+                labels_in = np.array([TRUCKSCENES_LABELS_TO_IDX[l] if l in TRUCKSCENES_LABELS_TO_IDX else 255 for l in labels_in])
+                # Get locs into the ego frame
+                filename = os.path.basename(self.data_paths[index])  # e.g., 'scene-abc-1_0.pth'
+                scene_id = os.path.splitext(filename)[0]  # removes '.pth'
+
+                # Construct EGO pose path
+                ego_pose_path = os.path.join(
+                    '/home/daniel/spatial_understanding/benchmarks/openscene/data/truckscenes_2d/',
+                    self.split,
+                    scene_id,
+                    'pose',
+                    'EGO.txt'
+                )
+
+                # Load the EGO pose
+                T_w_to_ego = np.loadtxt(ego_pose_path)
+
+                # Transform locs_in (N x 3) to homogeneous coordinates (N x 4)
+                homo_coords = np.hstack((locs_in[:, :3], np.ones((locs_in.shape[0], 1), dtype=np.float64)))  # (N, 4)
+                locs_in = (np.linalg.inv(T_w_to_ego) @ homo_coords.T).T[:, :3]  # (N, 3)
+                locs_in = np.ascontiguousarray(locs_in[:, :3])
+                # print("1x   : ", min(locs_in[:, 0]), max(locs_in[:, 0]))
+                # print("1y   : ", min(locs_in[:, 1]), max(locs_in[:, 1]))
+
+            else:
+                labels_in[labels_in == -100] = 255
+            
             labels_in = labels_in.astype(np.uint8)
             # no color in the input point cloud, e.g nuscenes
             if np.isscalar(feats_in) and feats_in == 0:

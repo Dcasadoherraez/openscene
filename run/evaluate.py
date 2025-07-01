@@ -5,6 +5,7 @@ import logging
 import argparse
 import urllib
 
+from os.path import join
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn.parallel
@@ -24,6 +25,11 @@ from run.distill import get_model
 
 from dataset.label_constants import *
 
+from PIL import Image
+import matplotlib.pyplot as plt
+import sys
+sys.path.append("/home/daniel/spatial_understanding/benchmarks/openscene/scripts/feature_fusion")
+from fusion_util import PointCloudToImageMapper
 
 def get_parser():
     '''Parse the config file.'''
@@ -86,6 +92,9 @@ def precompute_text_related_properties(labelset_name):
     elif 'nuscenes' in labelset_name:
         labelset = list(NUSCENES_LABELS_16)
         palette = get_palette(colormap='nuscenes16')
+    elif 'truckscenes' in labelset_name:
+        labelset = list(TRUCKSCENES_LABELS_12)
+        palette = get_palette(colormap='truckscenes12')
     else: # an arbitrary dataset, just use a large labelset
         labelset = list(MATTERPORT_LABELS_160)
         palette = get_palette(colormap='matterport_160')
@@ -165,7 +174,9 @@ def main_worker(gpu, ngpus_per_node, argss):
         pass # do not need to load weight
     elif is_url(args.model_path): # load from url
         checkpoint = model_zoo.load_url(args.model_path, progress=True)
-        model.load_state_dict(checkpoint['state_dict'], strict=True)
+        state_dict = checkpoint['state_dict']
+        state_dict = {k.partition('module.')[2]:state_dict[k] for k in state_dict.keys()}
+        model.load_state_dict(state_dict, strict=True)
     
     elif args.model_path is not None and os.path.isfile(args.model_path):
         # load from directory
@@ -202,11 +213,11 @@ def main_worker(gpu, ngpus_per_node, argss):
     
     from dataset.feature_loader import FusedFeatureLoader, collation_fn_eval_all
     val_data = FusedFeatureLoader(datapath_prefix=args.data_root,
-                                datapath_prefix_feat=args.data_root_2d_fused_feature,
-                                voxel_size=args.voxel_size, 
-                                split=args.split, aug=False,
-                                memcache_init=args.use_shm, eval_all=True, identifier=6797,
-                                input_color=args.input_color)
+                                  datapath_prefix_feat=args.data_root_2d_fused_feature,
+                                  voxel_size=args.voxel_size, 
+                                  split=args.split, aug=False,
+                                  memcache_init=args.use_shm, eval_all=True, identifier=6797,
+                                  input_color=args.input_color)
     val_sampler = None
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.test_batch_size,
                                                 shuffle=False, num_workers=args.test_workers, pin_memory=True,
@@ -340,11 +351,11 @@ def evaluate(model, val_data_loader, labelset_name='scannet_3d'):
                     if vis_pred:
                         pcl = torch.load(val_data_loader.dataset.data_paths[i])[0][label_mask]
 
-                if vis_input:
+                if vis_input: # only if color in point cloud
                     input_color = torch.load(val_data_loader.dataset.data_paths[i])[1]
                     export_pointcloud(os.path.join(save_folder, '{}_input.ply'.format(i)), pcl, colors=(input_color+1)/2)
 
-                if vis_pred:
+                if vis_pred and i % 20 == 0:
                     if mapper is not None:
                         pred_label_color = convert_labels_with_palette(mapper[logits_pred].numpy(), palette)
                         export_pointcloud(os.path.join(save_folder, '{}_{}.ply'.format(i, feature_type)), pcl, colors=pred_label_color)
@@ -357,7 +368,7 @@ def evaluate(model, val_data_loader, labelset_name='scannet_3d'):
                                     os.path.join(save_folder, '{}_labels_{}.jpg'.format(i, feature_type)), ncol=5)
 
                 # Visualize GT labels
-                if vis_gt:
+                if vis_gt and i % 20 == 0:
                     # for points not evaluating
                     label[label==255] = len(labelset)-1
                     gt_label_color = convert_labels_with_palette(label.cpu().numpy(), palette)
@@ -366,7 +377,6 @@ def evaluate(model, val_data_loader, labelset_name='scannet_3d'):
                                 labelset,
                                 palette,
                                 os.path.join(save_folder, '{}_labels_gt.jpg'.format(i)), ncol=5)
-
                     if 'nuscenes' in labelset_name:
                         all_digits = np.unique(np.concatenate([np.unique(mapper[logits_pred].numpy()), np.unique(label)]))
                         labelset = list(NUSCENES_LABELS_16)
@@ -375,6 +385,81 @@ def evaluate(model, val_data_loader, labelset_name='scannet_3d'):
                         visualize_labels(list(all_digits), labelset, 
                             palette, os.path.join(save_folder, '{}_label.jpg'.format(i)), ncol=all_digits.shape[0])
 
+                    # Visualize projection
+                    ########################################
+                    # Projection viz does not work cause the coords are modified in the fusedfeatureloader voxel
+                    # Cannot retrieve. If I wanna see projections I should do it differently.
+                    # Maybe save the predictions, and use the original point cloud & camera image
+                    # NuScenes what is plotting is pcl, not coords!!!!!!!!!!
+
+                    # root, _, split, scene = val_data_loader.dataset.data_paths[i].split("/")
+                    # scene = scene.strip(".pth")
+                    # image_data_path = join(root, "truckscenes_2d", split, scene)
+                    # images_path = join(image_data_path, "color")
+                    # intrinsics_path = join(image_data_path, "K") 
+                    # posess_path = join(image_data_path, "pose") 
+                    
+                    # cam_locs = [c.split(".")[0] for c in os.listdir(images_path)]
+                    
+                    # for cam in cam_locs:
+                    #     img_path = join(images_path, f"{cam}.png")
+                    #     intrinsic_path = join(intrinsics_path, f"{cam}.txt")
+                    #     cam_pose_path = join(posess_path, f"{cam}.txt")
+                    #     ego_pose_path = join(posess_path, "EGO.txt")
+                        
+                    #     img = Image.open(img_path)
+                    #     img = np.array(img)
+                        
+                    #     radar_points = coords[:, 1:4].to(dtype=torch.float64)
+                    #     point_colors = np.array([palette[i] for i in label])
+                    #     intrinsics = np.loadtxt(intrinsic_path)
+                    #     T_w_to_cam = np.loadtxt(cam_pose_path)
+                    #     T_w_to_ego = np.loadtxt(ego_pose_path)
+                    #     T_ego_to_w = np.linalg.inv(T_w_to_ego)
+                        
+                    #     T_ego_to_cam = T_ego_to_w @ T_w_to_cam
+                    #     homo_coords = torch.hstack((radar_points, torch.ones((radar_points.shape[0], 1), dtype=radar_points.dtype)))
+                    #     pc_in_ego = radar_points # (torch.tensor(T_ego_to_w, dtype=radar_points.dtype) @ homo_coords.T).T[:, :3]
+                    #     print(radar_points.shape, pc_in_ego.shape, radar_points.dtype, T_ego_to_w.dtype)
+                    #     print(pc_in_ego)
+
+                    #     pc_to_img_mapper = PointCloudToImageMapper(
+                    #         image_dim=(img.shape[1], img.shape[0]),
+                    #         visibility_threshold=0.1,
+                    #         cut_bound=0,
+                    #         intrinsics=intrinsics
+                    #     )
+                    #     # Compute mapping
+                    #     mapping = pc_to_img_mapper.compute_mapping(
+                    #         camera_to_world=T_ego_to_cam,
+                    #         coords=pc_in_ego,
+                    #         depth=None,
+                    #         intrinsic=intrinsics
+                    #     )
+                    #     # Create a mask for the points that are visible in the image
+                    #     visible_mask = mapping[:, 2] == 1
+                    #     # Get the corresponding pixel coordinates
+                    #     pixel_coords = mapping[visible_mask, :2].astype(int)
+                    #     point_colors = point_colors[visible_mask]
+                    #     print(radar_points.shape, pixel_coords.shape)
+                        
+                    #     mapped_img = np.copy(img)
+                    #     fig_path = os.path.join(save_folder, f'{i}_{cam}_gt_label_projection.jpg')
+                        
+                    #     plt.figure(figsize=(20, 15))
+                    #     plt.subplot(1,2,1)
+                    #     plt.imshow(mapped_img)
+                    #     plt.scatter(pixel_coords[:, 1], pixel_coords[:, 0], s=1, alpha=0.5)
+                        
+                    #     plt.subplot(1,2,2)
+                    #     plt.scatter(pc_in_ego[:, 0], pc_in_ego[:, 1], s=1, alpha=0.5)
+                    #     plt.title('Radar Points Mapped to Image')
+                    #     plt.gca().set_aspect('equal')
+                    #     plt.savefig(fig_path)
+
+
+
+                                
                 if eval_iou:
                     if mark_no_feature_to_unknown:
                         if "nuscenes" in labelset_name: # special case

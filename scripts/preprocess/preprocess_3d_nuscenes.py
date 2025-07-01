@@ -102,7 +102,7 @@ def process_txt(filename):
 #####################################
 split = 'val' # 'train' | 'val'
 out_dir = 'data/nuscenes_3d/{}'.format(split)
-in_path = '/PATH_TO/nuscenes/{}'.format(split) # downloaded original nuscenes data
+in_path = '/shared/data/nuScenes/{}'.format(split) # downloaded original nuscenes data
 export_all_points = True # default we export all points within 0.5 sec
 scene_list = os.listdir(in_path)
 ################

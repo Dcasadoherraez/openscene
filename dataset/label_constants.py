@@ -1,5 +1,36 @@
 '''Label file for different datasets.'''
 
+TRUCKSCENES_LABELS_TO_IDX = {"animal": 0 ,
+                            "human.pedestrian.adult": 7,
+                            "human.pedestrian.child": 7 ,
+                            "human.pedestrian.construction_worker": 7 ,
+                            "human.pedestrian.personal_mobility": 7 ,
+                            "human.pedestrian.police_officer": 7 ,
+                            "human.pedestrian.stroller": 255 ,
+                            "human.pedestrian.wheelchair": 255 ,
+                            "movable_object.barrier": 1 ,
+                            "movable_object.debris": 255 ,
+                            "movable_object.pushable_pullable": 255,
+                            "movable_object.trafficcone": 8,
+                            "static_object.bicycle_rack": 255,
+                            "static_object.traffic_sign": 9,
+                            "vehicle.bicycle": 2,
+                            "vehicle.bus.bendy": 3,
+                            "vehicle.bus.rigid": 3,
+                            "vehicle.car": 4,
+                            "vehicle.construction": 6,
+                            "vehicle.emergency.ambulance": 255,
+                            "vehicle.emergency.police": 255,
+                            "vehicle.motorcycle": 5,
+                            "vehicle.trailer": 10,
+                            "vehicle.truck": 11,
+                            "vehicle.train": 255,
+                            "vehicle.other": 255,
+                            "vehicle.ego_trailer": 255,
+                            "unlabeled": 255
+}
+
+
 SCANNET_LABELS_20 = ('wall', 'floor', 'cabinet', 'bed', 'chair', 'sofa',
                      'table', 'door', 'window', 'bookshelf', 'picture','counter', 'desk', 'curtain', 'refrigerator', 'shower curtain',
                      'toilet', 'sink', 'bathtub', 'otherfurniture')
@@ -51,6 +82,8 @@ MATTERPORT_LABELS_160 = ('wall', 'door', 'ceiling', 'floor', 'picture', 'window'
 NUSCENES_LABELS_16 = ('barrier', 'bicycle', 'bus', 'car', 'construction vehicle', 'motorcycle', 'person', 'traffic cone',
                       'trailer', 'truck', 'drivable surface', 'other flat', 'sidewalk', 'terrain', 'manmade', 'vegetation')
 
+TRUCKSCENES_LABELS_12 = ('animal', 'barrier', 'bicycle', 'bus', 'car', 'motorcycle', 'construction vehicle', 'person', 'traffic cone',
+                         'traffic sign', 'trailer', 'truck')
 
 NUSCENES_LABELS_DETAILS = ('barrier', 'barricade', 'bicycle', 'bus', 'car', 'bulldozer', 'excavator', 'concrete mixer', 'crane', 'dump truck',
                            'motorcycle', 'person', 'pedestrian','traffic cone', 'trailer', 'semi trailer', 'cargo container', 'shipping container', 'freight container',
@@ -61,8 +94,23 @@ NUSCENES_LABELS_DETAILS = ('barrier', 'barricade', 'bicycle', 'bus', 'car', 'bul
 MAPPING_NUSCENES_DETAILS = (0, 0, 1, 2, 3, 4, 4, 4, 4, 4,
                             5, 6, 6, 7, 8, 8, 8, 8, 8,
                             9, 10, 11, 11, 11, 12, 13, 13, 13, 13, 13, 13,
-                            14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15
+                            14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15, 15 # last 15 here added by myself to fix visualization  
                             )
+TRUCKSCENES12_COLORMAP = {
+    1: (160, 82, 45),      # animal 
+    2: (220, 220, 0),      # barrier
+    3: (119, 11, 32),      # bicycle
+    4: (0, 60, 100),       # bus
+    5: (0, 0, 250),        # car
+    6: (0, 0, 230),        # motorcycle
+    7: (230, 230, 250),    # construction vehicle
+    8: (220, 20, 60),      # person
+    9: (250, 170, 30),     # traffic cone
+    10: (200, 150, 0),     # traffic sign
+    11: (0, 0, 110),       # trailer
+    12: (128, 64, 128),    # truck
+    13: (0, 0, 0),         # unknown / unlabeled
+}
 
 
 NUSCENES16_COLORMAP = {

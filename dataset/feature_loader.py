@@ -1,5 +1,5 @@
 '''Dataloader for fused point features.'''
-
+import os
 import copy
 from glob import glob
 from os.path import join
@@ -8,6 +8,9 @@ import numpy as np
 import SharedArray as SA
 
 from dataset.point_loader import Point3DLoader
+from dataset.label_constants import TRUCKSCENES_LABELS_TO_IDX
+
+
 
 class FusedFeatureLoader(Point3DLoader):
     '''Dataloader for fused point features.'''
@@ -33,7 +36,7 @@ class FusedFeatureLoader(Point3DLoader):
         # Precompute the occurances for each scene
         # for training sets, ScanNet and Matterport has 5 each, nuscene 1
         # for evaluation/test sets, all has just one
-        if 'nuscenes' in self.dataset_name: # only one file for each scene
+        if 'nuscenes' in self.dataset_name or 'truckscenes' in self.dataset_name: # only one file for each scene
             self.list_occur = None
         else:
             self.list_occur = []
@@ -69,9 +72,38 @@ class FusedFeatureLoader(Point3DLoader):
             labels_in = SA.attach("shm://%s_%s_%06d_labels_%08d" % (
                 self.dataset_name, self.split, self.identifier, index)).copy()
         else:
-            locs_in, feats_in, labels_in = torch.load(self.data_paths[index])
-            labels_in[labels_in == -100] = 255
+            locs_in, feats_in, labels_in, instance_in = torch.load(self.data_paths[index])
+
+            if 'truckscenes' in self.dataset_name:
+                labels_in = np.array([TRUCKSCENES_LABELS_TO_IDX[l] if l in TRUCKSCENES_LABELS_TO_IDX else 255 for l in labels_in])
+                # Get locs into the ego frame
+                filename = os.path.basename(self.data_paths[index])  # e.g., 'scene-abc-1_0.pth'
+                scene_id = os.path.splitext(filename)[0]  # removes '.pth'
+
+                # Construct EGO pose path
+                ego_pose_path = os.path.join(
+                    '/home/daniel/spatial_understanding/benchmarks/openscene/data/truckscenes_2d/',
+                    self.split,
+                    scene_id,
+                    'pose',
+                    'EGO.txt'
+                )
+
+                # Load the EGO pose
+                T_w_to_ego = np.loadtxt(ego_pose_path)
+
+                # Transform locs_in (N x 3) to homogeneous coordinates (N x 4)
+                homo_coords = np.hstack((locs_in[:, :3], np.ones((locs_in.shape[0], 1), dtype=np.float64)))  # (N, 4)
+                locs_in = (np.linalg.inv(T_w_to_ego) @ homo_coords.T).T[:, :3]  # (N, 3)
+                locs_in = np.ascontiguousarray(locs_in[:, :3])
+                # print("1x   : ", min(locs_in[:, 0]), max(locs_in[:, 0]))
+                # print("1y   : ", min(locs_in[:, 1]), max(locs_in[:, 1]))
+
+            else:
+                labels_in[labels_in == -100] = 255
+            
             labels_in = labels_in.astype(np.uint8)
+            
             if np.isscalar(feats_in) and feats_in == 0:
                 # no color in the input point cloud, e.g nuscenes lidar
                 feats_in = np.zeros_like(locs_in)
@@ -84,7 +116,7 @@ class FusedFeatureLoader(Point3DLoader):
         else:
             scene_name = self.data_paths[index][:-4].split('/')[-1]
 
-        if 'nuscenes' not in self.dataset_name:
+        if 'nuscenes' not in self.dataset_name and 'truckscenes' not in self.dataset_name:
             n_occur = self.list_occur[index]
             if n_occur > 1:
                 nn_occur = np.random.randint(n_occur)
@@ -116,11 +148,20 @@ class FusedFeatureLoader(Point3DLoader):
             mask = torch.zeros(feat_3d.shape[0], dtype=torch.bool)
             mask[mask_visible] = True # mask out points without feature assigned
 
+
+        if torch.sum(mask_chunk) == 0:
+            # print(f"WARNING: Sample at index {index} ({self.data_paths[index]}) has no valid points. Skipping and loading next sample.")
+            # Simply call __getitem__ again with the next index
+            return self.__getitem__(index_long + 1)
+        
+    
         if len(feat_3d.shape)>2:
             feat_3d = feat_3d[..., 0]
 
         locs = self.prevoxel_transforms(locs_in) if self.aug else locs_in
 
+        # print("2x:  " , min(locs[:, 0]), max(locs[:, 0]))
+        # print("2y:  " , min(locs[:, 1]), max(locs[:, 1]))
         # calculate the corresponding point features after voxelization
         if self.split == 'train' and flag_mask_merge:
             locs, feats, labels, inds_reconstruct, vox_ind = self.voxelizer.voxelize(
@@ -171,6 +212,9 @@ class FusedFeatureLoader(Point3DLoader):
             feat_3d = feat_3d[vox_ind]
             mask = mask[vox_ind]
 
+        # print("3x:  " , min(locs[:, 0]), max(locs[:, 0]))
+        # print("3y:  " , min(locs[:, 1]), max(locs[:, 1]))
+        
         if self.eval_all: # during evaluation, no voxelization for GT labels
             labels = labels_in
         if self.aug:
@@ -184,6 +228,9 @@ class FusedFeatureLoader(Point3DLoader):
             feats = torch.ones(coords.shape[0], 3)
         labels = torch.from_numpy(labels).long()
 
+        # print("4x:  " , min(locs[:, 0]), max(locs[:, 0]))
+        # print("4y:  " , min(locs[:, 1]), max(locs[:, 1]))
+        
         if self.eval_all:
             return coords, feats, labels, feat_3d, mask, torch.from_numpy(inds_reconstruct).long()
         return coords, feats, labels, feat_3d, mask

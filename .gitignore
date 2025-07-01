@@ -1,5 +1,6 @@
-data
-saved_text_embeddings
+data/
+saved_text_embeddings/
+*.npy
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
 # Byte-compiled / optimized / DLL files
@@ -133,3 +134,22 @@ dmypy.json
 out
 3rdParty
 initmodel
+demo/openscene_features/RPmz2sHmrrY_region0.npy
+demo/openscene_features/RPmz2sHmrrY_region1.npy
+demo/openscene_features/RPmz2sHmrrY_region2.npy
+demo/openscene_features/RPmz2sHmrrY_region3.npy
+demo/openscene_features/RPmz2sHmrrY_region4.npy
+demo/openscene_features/RPmz2sHmrrY_region5.npy
+demo/openscene_features/RPmz2sHmrrY_region6.npy
+demo/openscene_features/RPmz2sHmrrY_region7.npy
+experiments/distill/truckscenes_openseg/events.out.tfevents.1749591123.daniel-vm
+experiments/distill/truckscenes_openseg/events.out.tfevents.1749626738.daniel-vm
+experiments/distill/truckscenes_openseg/events.out.tfevents.1749627101.daniel-vm
+experiments/distill/truckscenes_openseg/events.out.tfevents.1749628507.daniel-vm
+experiments/distill/truckscenes_openseg/events.out.tfevents.1749629954.daniel-vm
+experiments/distill/truckscenes_openseg/model/model_best.pth.tar
+experiments/distill/truckscenes_openseg/model/model_last.pth.tar
+openseg_exported_clip/graph_def.pbtxt
+openseg_exported_clip/saved_model.pb
+openseg_exported_clip/variables/variables.data-00000-of-00001
+openseg_exported_clip/variables/variables.index

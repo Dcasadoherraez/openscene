@@ -59,7 +59,7 @@ def process_one_sequence(scene):
 #####################################
 split = 'train' # 'train' | 'val'
 out_dir = 'data/nuscenes_2d/{}'.format(split)
-data_path = '/PATH_TO/nuscenes/{}'.format(split) # downloaded original nuscenes data
+data_path = '/shared/data/nuScenes/{}'.format(split) # downloaded original nuscenes data
 scene_list = os.listdir(data_path)
 #####################################
 

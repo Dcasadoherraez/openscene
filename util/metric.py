@@ -8,9 +8,9 @@ NO_FEATURE_ID = 256
 
 def confusion_matrix(pred_ids, gt_ids, num_classes):
     '''calculate the confusion matrix.'''
-
     assert pred_ids.shape == gt_ids.shape, (pred_ids.shape, gt_ids.shape)
     idxs = gt_ids != UNKNOWN_ID
+    
     if NO_FEATURE_ID in pred_ids: # some points have no feature assigned for prediction
         pred_ids[pred_ids==NO_FEATURE_ID] = num_classes
         confusion = np.bincount(
@@ -56,10 +56,14 @@ def evaluate(pred_ids, gt_ids, stdout=False, dataset='scannet_3d'):
         CLASS_LABELS = MATTERPORT_LABELS_21
     elif 'nuscenes_3d' in dataset:
         CLASS_LABELS = NUSCENES_LABELS_16
+    elif 'truckscenes_3d' in dataset:
+        CLASS_LABELS = TRUCKSCENES_LABELS_12
     else:
         raise NotImplementedError
 
     N_CLASSES = len(CLASS_LABELS)
+    print(pred_ids)
+    print(gt_ids)
     confusion = confusion_matrix(pred_ids, gt_ids, N_CLASSES)
     class_ious = {}
     class_accs = {}
